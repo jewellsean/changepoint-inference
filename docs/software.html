@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+	<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="description" content="">
+<meta name="author" content="">
+
+<!-- Bootstrap core CSS -->
+<link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Custom styles for this template -->
+<link href="css/logo-nav.css" rel="stylesheet">
+<link href="css/syntax.css" rel="stylesheet">
+
+
+
+<title>
+    Software
+</title>
+  
+  </head>
+  
+  
+  <body>
+  
+  	<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="index.html">Overview
+                        <span class="sr-only">(current)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="tutorial.html">Basic tutorial</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="advanced_tutorial.html">Advanced tutorial</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="reproduce.html">Materials to reproduce paper figures</a>
+                </li>
+
+
+                <li class="nav-item">
+                    <a class="nav-link" href="software.html">Software</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="references.html">References</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+
+
+    <!-- Page Content -->
+    <div class="container">
+        <h1 class="mt-5"></h1>
+
+        <p>The <code class="highlighter-rouge">ChangepointInference</code> package is publicly available on Github at <a href="https://github.com/jewellsean/ChangepointInference">https://github.com/jewellsean/ChangepointInference</a>.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>In R, make sure that the <code class="highlighter-rouge">devtools</code> package is installed (<code class="highlighter-rouge">install.packages("devtools")</code>) and then run</p>
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">devtools</span><span class="o">::</span><span class="n">install_github</span><span class="p">(</span><span class="s2">"jewellsean/ChangepointInference"</span><span class="p">)</span><span class="n">.</span><span class="w">
+</span></code></pre></div></div>
+<p>This command installs the latest version of the package from Github.</p>
+
+
+
+    </div>
+    <!-- /.container -->
+
+
+  <footer>
+  	<div class="container">
+    <br>
+<p><a href="#">Back to top</a></p>
+    <p>&copy; 2019 <a href="https://www.stat.washington.edu/~swjewell/index.html">Sean Jewell</a> (swjewell at uw dot edu)
+</div><!-- /.container -->
+
+
+<!-- Bootstrap core JavaScript -->
+<script src="vendor/jquery/jquery.min.js"></script>
+<script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+
+<!-- MathJax -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    TeX: { 
+      Macros: {
+         1: '{\\bf 1}',
+        DP: '{\\textrm{DP}}',
+        CRP: '{\\textrm{CRP}}',
+        Uni: '{\\textrm{Uni}}',
+        Norm: '{\\textrm{Normal}}',
+        Dir: '{\\textrm{Dir}}',
+        Beta: '{\\textrm{Beta}}',
+        Cat: '{\\textrm{Cat}}',
+        Exp: '{\\textrm{Exp}}',
+        E: '{\\mathbb{E}}',
+        P: '{\\mathbb{P}}',
+        deq: '{\\stackrel{\\scriptscriptstyle d}{=}}',
+        Cov: '{\\bf Cov}',
+        Yscr: '{\\mathscr{Y}}',
+        RR: '{\\mathbb{R}}',
+        sa: '{\\mathcal{F}}',
+        bold: ['{\\bf #1}', 1]
+      },
+      equationNumbers: { autoNumber: "AMS" },
+       extensions: ["autobold.js"]
+    },
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      processEscapes: true
+    },
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript"
+   src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-58359915-2', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+  </footer>
+
+  </body>
+</html>

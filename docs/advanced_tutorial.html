@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+	<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="description" content="">
+<meta name="author" content="">
+
+<!-- Bootstrap core CSS -->
+<link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Custom styles for this template -->
+<link href="css/logo-nav.css" rel="stylesheet">
+<link href="css/syntax.css" rel="stylesheet">
+
+
+
+<title>
+    Advanced Tutorial
+</title>
+  
+  </head>
+  
+  
+  <body>
+  
+  	<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="index.html">Overview
+                        <span class="sr-only">(current)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="tutorial.html">Basic tutorial</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="advanced_tutorial.html">Advanced tutorial</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="reproduce.html">Materials to reproduce paper figures</a>
+                </li>
+
+
+                <li class="nav-item">
+                    <a class="nav-link" href="software.html">Software</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="references.html">References</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+
+
+    <!-- Page Content -->
+    <div class="container">
+        <h1 class="mt-5"></h1>
+
+        <h2 id="advanced-tutorial">Advanced tutorial</h2>
+
+<p>In this tutorial, we demonstrate advanced use of the <code class="highlighter-rouge">ChangepointInference</code> package. 
+Installation instructions are provided <a href="software.html">here</a>.</p>
+
+<p>First load the package:</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">require</span><span class="p">(</span><span class="n">ChangepointInference</span><span class="p">)</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">## Loading required package: ChangepointInference</code></pre></figure>
+
+<p>To illustrate the software, we generate a synthetic dataset according to</p>
+
+<p><script type="math/tex">\begin{align}
+Y_{t} = \mu_{t} + \epsilon_{t}, \quad \epsilon_{t} \overset{\text{iid}}{\sim} \mathrm{N}(0, \sigma^{2}), \quad t=1,\ldots,T,
+\end{align}</script>
+and assume that $\mu_1,\ldots,\mu_T$ is  piecewise constant, in the sense that  $\mu_{\tau_j+1}=\mu_{\tau_j + 2 } = \ldots = \mu_{\tau_{j+1}}$, $\mu_{\tau_{j+1}} \neq \mu_{\tau_{j+1}+1}$, for $j=0,\ldots,K-1$, where $0 = \tau_{0} &lt; \tau_{1} &lt; \ldots &lt; \tau_{K} &lt; \tau_{K+1} = T$, and where $\tau_1,\ldots,\tau_K$ represent the true changepoints.</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">set.seed</span><span class="p">(</span><span class="m">1</span><span class="p">)</span><span class="w">
+</span><span class="n">mu</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">rep</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="m">3</span><span class="p">,</span><span class="w"> </span><span class="m">-2</span><span class="p">),</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">100</span><span class="p">)</span><span class="w">
+</span><span class="n">dat</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">mu</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rnorm</span><span class="p">(</span><span class="nf">length</span><span class="p">(</span><span class="n">mu</span><span class="p">))</span><span class="w">
+</span><span class="n">plot</span><span class="p">(</span><span class="n">dat</span><span class="p">,</span><span class="w"> </span><span class="n">cex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">ylab</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"y"</span><span class="p">,</span><span class="w"> </span><span class="n">xlab</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"t"</span><span class="p">)</span></code></pre></figure>
+
+<p><img src="figure/source/advanced_tutorial/unnamed-chunk-2-1.png" alt="plot of chunk unnamed-chunk-2" /></p>
+
+<h4 id="changepoint-estimation">Changepoint estimation</h4>
+
+<p>To estimate changepoints via $\ell_0$ segmentation, we use functional recursions <a href="#rigaill2015pruned">(Rigaill, 2015; Maidstone, Hocking, Rigaill, &amp; Fearnhead, 2017)</a>. In this section, we briefly describe these recursions and illustrate how this information can be extracted from our software.</p>
+
+<p>Let $\mathrm{Cost}(y_{1:s}; u)$ be the cost of segmenting $y_{1:s}$ with $\mu_{s} = u$. Then $\mathrm{Cost}(y_{1:s}; u)$ can be efficiently computed: At the first timepoint, we have $\mathrm{Cost}(y_{1}; u) = \frac12(y_{1} - u)^{2}$; for any $s &gt; 1$ and for all $u$, 
+<script type="math/tex">\begin{align}
+\mathrm{Cost}(y_{1:s}; u) = \min\left\{ \mathrm{Cost}(y_{1:(s-1)};u), \min_{u'}{\mathrm{Cost}(y_{1:(s-1)};u')} + \lambda	\right\} + \frac12(y_{s} - u)^{2}.
+\end{align}</script></p>
+
+<p>For each $u$, this recursion encapsulates two possibilities: (i) there is no changepoint at  the $(s-1)$st timepoint, and the optimal cost is equal to the previous cost plus the cost of a new data point, $\mathrm{Cost}(y_{1:(s-1)};u) + \frac12(y_{s} - u)^{2}$; (ii) there is a changepoint at the $(s-1)$st timepoint, and the optimal cost is equal to the optimal cost of segmenting up to $s-1$ plus the penalty for adding a changepoint at $s-1$ plus the cost of a new data point,  $\min_{u’}{\mathrm{Cost}(y_{1:(s-1)};u’)} + \lambda	+ \frac12(y_{s} - u)^{2}$.</p>
+
+<p>Setting <code class="highlighter-rouge">functional_pruning_out = TRUE</code> allows us to examine  $\mathrm{Cost}(y_{1:s}; u)$. The following plots $\mathrm{Cost}(y_{1:300}; u)$. Colors represent the most recent changepoint associated with optimal cost at each $u$.</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">lam</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">4</span><span class="w">
+</span><span class="n">fit</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">changepoint_estimates</span><span class="p">(</span><span class="n">dat</span><span class="p">,</span><span class="w"> </span><span class="s2">"L0"</span><span class="p">,</span><span class="w"> </span><span class="n">lam</span><span class="p">,</span><span class="w"> </span><span class="n">functional_pruning_out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span><span class="w">
+</span><span class="n">p</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">plot</span><span class="p">(</span><span class="n">fit</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">300</span><span class="p">)</span></code></pre></figure>
+
+<p><img src="figure/source/advanced_tutorial/unnamed-chunk-3-1.png" alt="plot of chunk unnamed-chunk-3" /></p>
+
+<p>To manually access the cost functions use <code class="highlighter-rouge">fit$piecewise_square_losses</code>. Since $\mathrm{Cost}(y_{1:s}; u)$ is piecewise quadratic, we represent each component through its coefficients <code class="highlighter-rouge">(square, linear, constant)</code> over domain <code class="highlighter-rouge">(min_mean, max_mean)</code>. Furthermore, we store the most recent changepoint <code class="highlighter-rouge">data_i</code> for each region <code class="highlighter-rouge">(min_mean, max_mean)</code>.</p>
+
+<p>For example, the plot above is created by filtering the dataframe to $s = 300$. We see that this cost function is defined over five regions with most recent changepoints at <code class="highlighter-rouge">200, 287, 294, 299</code>.</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">fit</span><span class="o">$</span><span class="n">piecewise_square_losses</span><span class="p">[</span><span class="n">fit</span><span class="o">$</span><span class="n">piecewise_square_losses</span><span class="o">$</span><span class="n">s</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">300</span><span class="p">,</span><span class="w"> </span><span class="p">]</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">##      square     linear constant   min_mean   max_mean prev_last_mean
+## 1617    0.5   2.305815 152.9045 -4.8889207 -2.2512053      -1.966938
+## 1618   50.0 197.032646 340.4123 -2.2512053 -1.7139801       2.962192
+## 1619    6.5  21.534563 167.4032 -1.7139801 -1.6503894      -2.017219
+## 1620    3.0   8.722768 155.7920 -1.6503894 -0.5818996      -2.003297
+## 1621    0.5   2.305815 152.9045 -0.5818996  5.3079784      -1.966938
+##      data_i   s
+## 1617    299 300
+## 1618    200 300
+## 1619    287 300
+## 1620    294 300
+## 1621    299 300</code></pre></figure>
+
+<h4 id="changepoint-inference">Changepoint inference</h4>
+
+<p>The conditioning set $\mathcal{S}$ can be extracted for fixed and adaptive $\nu$s by setting <code class="highlighter-rouge">return_conditioning_sets = TRUE</code>. See Section 3 of our paper <a href="#jewell2019testing">(Jewell, Fearnhead, &amp; Witten, 2019)</a> for additional details.</p>
+
+<p>For example,</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">h</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">10</span><span class="w">
+</span><span class="n">K</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="m">2</span><span class="w">
+</span><span class="n">fit_inference</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">changepoint_inference</span><span class="p">(</span><span class="n">dat</span><span class="p">,</span><span class="w"> </span><span class="s1">'BS-fixed'</span><span class="p">,</span><span class="w"> </span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">window_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">return_conditioning_sets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span></code></pre></figure>
+
+<p>The conditioning set for each estimated changepoint can be accessed through</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">fit_inference</span><span class="o">$</span><span class="n">conditioning_sets</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">## [[1]]
+##     min_mean   max_mean contained
+## 1       -Inf -63.819416         1
+## 2 -63.819416  -1.555879         1
+## 3  -1.555879  33.068620         0
+## 4  33.068620        Inf         1
+## 
+## [[2]]
+##    min_mean  max_mean contained
+## 1      -Inf -8.835202         1
+## 2 -8.835202  2.720512         0
+## 3  2.720512 13.128808         1
+## 4 13.128808       Inf         1</code></pre></figure>
+
+<p>Each row is a subset of $\mathbb{R}$ defined as <code class="highlighter-rouge">(min_mean, max_mean)</code>. This region is in $\mathcal{S}$ if <code class="highlighter-rouge">contained = 1</code>.</p>
+
+<p>There are simple plotting tools to visualize these sets:</p>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">plot</span><span class="p">(</span><span class="n">fit_inference</span><span class="p">,</span><span class="w"> </span><span class="n">thj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fit_inference</span><span class="o">$</span><span class="n">change_pts</span><span class="p">[</span><span class="m">1</span><span class="p">])</span></code></pre></figure>
+
+<p><img src="figure/source/advanced_tutorial/unnamed-chunk-7-1.png" alt="plot of chunk unnamed-chunk-7" /></p>
+
+<p>In the case of inference with $\ell_0$ segmentation, it is also possible to view the cost of segmenting the data as a function of $\phi$, that is,</p>
+
+<script type="math/tex; mode=display">\begin{align}
+\mathrm{Cost(\phi)} := \underset{\mu\in\mathbb{R}^{T}}{\mathrm{min}}{\frac12 \sum_{t = 1}^{T} (y_t'(\phi) - \mu_{t})^{2} + \lambda \sum_{t = 
+2}^{T} 1_{(\mu_{t} \neq \mu_{t-1})}}.
+\end{align}</script>
+
+<figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">fit_inference</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">changepoint_inference</span><span class="p">(</span><span class="n">dat</span><span class="p">,</span><span class="w"> </span><span class="s1">'L0-fixed'</span><span class="p">,</span><span class="w"> </span><span class="n">lam</span><span class="p">,</span><span class="w"> </span><span class="n">window_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">sig</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w"> </span><span class="n">return_conditioning_sets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span><span class="w">
+</span><span class="n">plot</span><span class="p">(</span><span class="n">fit_inference</span><span class="p">,</span><span class="w"> </span><span class="n">thj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fit_inference</span><span class="o">$</span><span class="n">change_pts</span><span class="p">[</span><span class="m">1</span><span class="p">])</span></code></pre></figure>
+
+<p><img src="figure/source/advanced_tutorial/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8" /></p>
+
+<h2 id="references">References</h2>
+
+<ol class="bibliography"><li><div class="text-justify"><span id="rigaill2015pruned">Rigaill, G. (2015). A pruned dynamic programming algorithm to recover the best segmentations with 1 to K_max change-points. <i>Journal De La Société Française De Statistique</i>, <i>156</i>(4), 180–205.</span></div>
+<button class="button0" onclick="toggleBibtexrigaill2015pruned()">Bibtex</button>
+
+
+
+
+
+
+
+
+<div id="arigaill2015pruned" style="display: none;">
+    <pre>@article{rigaill2015pruned,
+  title = {A pruned dynamic programming algorithm to recover the best segmentations with 1 to ${K}_{max}$ change-points.},
+  author = {Rigaill, Guillem},
+  journal = {Journal de la Soci{\'e}t{\'e} Fran{\c{c}}aise de Statistique},
+  volume = {156},
+  number = {4},
+  pages = {180--205},
+  year = {2015}
+}
+</pre>
+</div>
+<script>
+function toggleBibtexrigaill2015pruned(parameter) {
+    var x= document.getElementById('arigaill2015pruned');
+    if (x.style.display === 'none') {
+        x.style.display = 'block';
+    } else {
+        x.style.display = 'none';
+    }
+}
+</script></li>
+<li><div class="text-justify"><span id="maidstone2017optimal">Maidstone, R., Hocking, T., Rigaill, G., &amp; Fearnhead, P. (2017). On optimal multiple changepoint algorithms for large data. <i>Statistics and Computing</i>, <i>27</i>(2), 519–533.</span></div>
+<button class="button0" onclick="toggleBibtexmaidstone2017optimal()">Bibtex</button>
+
+
+
+
+
+
+
+
+<div id="amaidstone2017optimal" style="display: none;">
+    <pre>@article{maidstone2017optimal,
+  title = {On optimal multiple changepoint algorithms for large data},
+  author = {Maidstone, Robert and Hocking, Toby and Rigaill, Guillem and Fearnhead, Paul},
+  journal = {Statistics and Computing},
+  volume = {27},
+  number = {2},
+  pages = {519--533},
+  year = {2017},
+  publisher = {Springer}
+}
+</pre>
+</div>
+<script>
+function toggleBibtexmaidstone2017optimal(parameter) {
+    var x= document.getElementById('amaidstone2017optimal');
+    if (x.style.display === 'none') {
+        x.style.display = 'block';
+    } else {
+        x.style.display = 'none';
+    }
+}
+</script></li>
+<li><div class="text-justify"><span id="jewell2019testing">Jewell, S., Fearnhead, P., &amp; Witten, D. (2019). <i>Testing for a change in mean after changepoint detection</i>.</span></div>
+<button class="button0" onclick="toggleBibtexjewell2019testing()">Bibtex</button>
+
+
+
+
+<a href=""><input class="button0" type="button" value="preprint" /></a>
+
+
+
+
+
+<a href="https://github.com/jewellsean/ChangepointInference"><input class="button0" type="button" value="code" /></a>
+
+<div id="ajewell2019testing" style="display: none;">
+    <pre>@techreport{jewell2019testing,
+  author = {Jewell, Sean and Fearnhead, Paul and Witten, Daniela},
+  keyword = {pre},
+  title = {Testing for a change in mean after changepoint detection},
+  year = {2019},
+  url = {},
+  preprint = {},
+  code = {https://github.com/jewellsean/ChangepointInference}
+}
+</pre>
+</div>
+<script>
+function toggleBibtexjewell2019testing(parameter) {
+    var x= document.getElementById('ajewell2019testing');
+    if (x.style.display === 'none') {
+        x.style.display = 'block';
+    } else {
+        x.style.display = 'none';
+    }
+}
+</script></li></ol>
+
+
+
+    </div>
+    <!-- /.container -->
+
+
+  <footer>
+  	<div class="container">
+    <br>
+<p><a href="#">Back to top</a></p>
+    <p>&copy; 2019 <a href="https://www.stat.washington.edu/~swjewell/index.html">Sean Jewell</a> (swjewell at uw dot edu)
+</div><!-- /.container -->
+
+
+<!-- Bootstrap core JavaScript -->
+<script src="vendor/jquery/jquery.min.js"></script>
+<script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+
+<!-- MathJax -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    TeX: { 
+      Macros: {
+         1: '{\\bf 1}',
+        DP: '{\\textrm{DP}}',
+        CRP: '{\\textrm{CRP}}',
+        Uni: '{\\textrm{Uni}}',
+        Norm: '{\\textrm{Normal}}',
+        Dir: '{\\textrm{Dir}}',
+        Beta: '{\\textrm{Beta}}',
+        Cat: '{\\textrm{Cat}}',
+        Exp: '{\\textrm{Exp}}',
+        E: '{\\mathbb{E}}',
+        P: '{\\mathbb{P}}',
+        deq: '{\\stackrel{\\scriptscriptstyle d}{=}}',
+        Cov: '{\\bf Cov}',
+        Yscr: '{\\mathscr{Y}}',
+        RR: '{\\mathbb{R}}',
+        sa: '{\\mathcal{F}}',
+        bold: ['{\\bf #1}', 1]
+      },
+      equationNumbers: { autoNumber: "AMS" },
+       extensions: ["autobold.js"]
+    },
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+      processEscapes: true
+    },
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+</script>
+
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for(i=0; i < all.length; i += 1) {
+            all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+    });
+</script>
+
+<script type="text/javascript"
+   src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-58359915-2', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+  </footer>
+
+  </body>
+</html>
