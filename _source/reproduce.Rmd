@@ -1,0 +1,413 @@
+---
+title: "Reproduce figures in Jewell et al. (2019+)"
+author: "Sean Jewell"
+date: '2019-10-02'
+output:
+  html_document:
+    code_folding: hide
+layout: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=12, fig.height=8) 
+
+```
+
+
+Reproduce figures in our paper {% cite jewell2019testing %}
+-----
+
+
+### Figure 1 
+
+```{r, warning=FALSE, cache=TRUE, echo = FALSE}
+library(ChangepointInference)
+library(tidyverse)
+library(gridExtra)
+
+set.seed(1)
+n <- 200
+n_changepoints <- 20
+
+true_changepts <- sort(unique(floor(runif(n_changepoints, 1, n))))
+n_changepts <- length(true_changepts)
+changepts_aug <- c(0, true_changepts, n)
+underlying_mean <- 0 * numeric(n)
+for (i in 1:n_changepts) {
+  underlying_mean[(changepts_aug[i] + 1):changepts_aug[i + 1]] <- rnorm(1, mean = 0, sd = 4)
+}
+
+true_changepts <- which(underlying_mean[2:n] != underlying_mean[1:(n - 1)])
+k <- length(true_changepts)
+
+set.seed(1)
+y <- underlying_mean + rnorm(n)
+
+out1 <- changepoint_inference(y, type = "BS-adaptive-M-O-D", tuning_parameter = k, sig = 1)
+out2 <- changepoint_inference(y, type = "BS-adaptive-M", tuning_parameter = k, sig = 1)
+
+df <- rbind(data.frame(change_pts = out1$change_pts, pvals = out1$pvals, type = "M-O-D"), 
+            data.frame(change_pts = out2$change_pts, pvals = out2$pvals, type = "M"))
+
+plot_data_changepts_rejection <- function(out, title) {
+  # plot estimated changepoints
+  chg_cols <- data.frame(x = out$change_pts, pvals = out$pvals) %>%
+    mutate(reject = if_else(pvals < 0.05, "rejection", "fail_to_reject"))
+  
+  q <- data.frame(x = 1:length(y), y = y) %>% 
+    ggplot() + 
+    geom_line(data = data.frame(x = 1:length(y), mu = underlying_mean), aes(x, mu), color = "darkblue", lwd = 1) + 
+    geom_vline(data = chg_cols, aes(xintercept = x, color = reject), lwd = 0.5) + 
+    geom_point(aes(x, y), alpha = 0.5) +
+    ylab("") + 
+    xlab("") + 
+    theme_bw() + 
+    ggtitle(title) +
+    theme(legend.position="none", 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+  return(q)
+}
+
+q1 <- plot_data_changepts_rejection(out1, "a)")
+q2 <- plot_data_changepts_rejection(out2, "b)")
+
+grid.arrange(q1, q2) 
+```
+
+### Figure 2 
+
+```{r, warning=FALSE, cache=TRUE, echo = FALSE}
+library(ChangepointInference)
+library(tidyverse)
+library(latex2exp)
+library(gridExtra)
+
+## plotting parameters
+col_red <- "#d95f02"
+col_blue <- "#1f78b4"
+
+## generate sample data with one changepoint 
+set.seed(1)
+mu <- rep(c(1, 2), each = 100)
+n <- length(mu)
+y <- mu + rnorm(n, sd = 0.1)
+
+## BS-adaptive-M inference
+k <- 1
+fit <- changepoint_inference(y, "BS-adaptive-M", 1, return_conditioning_sets = TRUE)
+
+v <- construct_v_tL_tR(1, fit$change_pts, n, n)
+vTy <- round(sum(v * y))
+
+ymax <- 3
+p0 <- data.frame(x = 1:n, y = y, mu = mu) %>% 
+  ggplot() + 
+  geom_point(aes(x, y), color = "gray", size = 0.5) +
+  geom_line(aes(x, mu), color = "darkblue") + 
+  ggtitle(TeX(paste0("a) Original data ($\\phi =", vTy, ")$"))) + 
+  ylab(TeX("$y'(\\phi)$")) +
+  coord_cartesian(ylim = c(0, ymax)) +
+  theme_bw()
+
+phi <- 0
+yphi <- construct_perturbed_data_tL_tR(y, 1, fit$change_pts, n, phi)
+
+p1 <- data.frame(x = 1:n, y = yphi, mu = mu) %>% 
+  ggplot() + 
+  geom_point(aes(x, y), color = col_red, size = 0.5) +
+  ggtitle(TeX(paste0("b) Perturbed data ($\\phi = $", phi, ")"))) +
+  geom_line(aes(x, mu), color = "darkblue") + 
+  ylab('') +
+  coord_cartesian(ylim = c(0, ymax)) +
+  theme_bw()
+
+phi <- -2
+yphi <- construct_perturbed_data_tL_tR(y, 1, fit$change_pts, n, phi)
+p2 <- data.frame(x = 1:n, y = yphi, mu = mu) %>% 
+  ggplot() + 
+  geom_point(aes(x, y), color = col_blue, size = 0.5) +
+  ylab('') +
+  ggtitle(TeX(paste0("c) Perturbed data ($\\phi = $", phi, ")"))) +
+  geom_line(aes(x, mu), color = "darkblue") + 
+  coord_cartesian(ylim = c(0, ymax)) +
+  theme_bw()
+
+q <- fit$conditioning_sets[[1]] %>% 
+  mutate(y = 1, contained = factor(contained, levels = c(0, 1), labels = c("Not in model", "In model"))) %>% 
+  ggplot() + 
+  geom_rect(aes(xmin = min_mean, xmax = max_mean, ymin = -10, ymax = 10, fill = contained)) +
+  coord_cartesian(xlim = c(-2, 2)) + 
+  ggtitle(TeX(paste0("d) The set of values of $\\phi$ such that $M(y'(\\phi)) = M(y)$"))) + 
+  xlab(TeX("$\\phi$")) + 
+  ylab('') + 
+  scale_fill_manual(values=c(col_red, col_blue)) +
+  theme_bw() +
+  theme(axis.text.y = element_blank(), axis.ticks = element_blank(), 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), 
+        legend.position="none", legend.title = element_blank())
+
+lay <- rbind(c(1, 2, 3), c(4, 4, 4))
+grid.arrange(p0, p1, p2, q, layout_matrix = lay)
+
+```
+
+### Figure 3
+
+```{r, warning=FALSE, cache=TRUE, echo = FALSE}
+## All experiment figures  
+library(tidyverse)
+library(magrittr)
+library(latex2exp)
+library(gridExtra)
+
+d_vs_true <- read_csv("d_vs_true.csv")
+d_est <- read_csv("d_est.csv")
+
+set.seed(1112)
+n <- 2000
+n_changepts <- 50
+delta <- 3
+
+changepts <- unique(sort(sample(2:n, size = n_changepts, replace = FALSE)))
+n_changepts <- length(changepts)
+
+changepts_aug <- c(0, changepts, n)
+
+mean_i <- 0
+underlying_mean <- 0 * numeric(n)
+for (i in 1:n_changepts) {
+  underlying_mean[(changepts_aug[i] + 1):changepts_aug[i + 1]] <- mean_i
+  if (mean_i == 0) {
+    mean_i <- delta
+  } else {
+    mean_i <- 0
+  }
+}
+
+n <- length(underlying_mean)
+true_changepts <- which(underlying_mean[2:n] != underlying_mean[1:(n - 1)])
+k <- length(true_changepts)
+
+DETECTION_THRESHOLD <- 2
+DETECTION_THRESHOLD_SAMPLE_SPLIT <- DETECTION_THRESHOLD
+REJECTION_THRESHOLD <- 0.05
+
+## Figre 3:
+
+p_error <- d_est %>% filter(delta == 1e-20) %>% 
+  mutate(window_size = if_else(is.na(window_size), -1, window_size)) %>% 
+  filter(type %in% c("L0-fixed", "BS-fixed", "BS-adaptive-M", "BS-adaptive-M-O-D")) %>% 
+  mutate(type = factor(type, levels = c("BS-adaptive-M-O-D", "BS-adaptive-M", "BS-fixed", "L0-fixed"), labels = c("Approach 1", "Approach 2", "Approach 3", "Approach 4"))) %>% 
+  filter(window_size %in% c("-1", "50"), !is.na(type)) %>% 
+  ggplot(aes(sample = pvals)) +
+  stat_qq(distribution = qunif, size = 0.01, alpha = 0.2) +
+  stat_qq_line(distribution = qunif) +
+  facet_grid(cols = vars(type)) + 
+  xlab("Theoretical Unif[0, 1] quantiles") + 
+  ylab(TeX("Observed $p$-value quantiles")) +
+  ggtitle("b)") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+set.seed(1)
+y <- underlying_mean + rnorm(n)
+q <- data.frame(x = 1:length(y), y = y) %>% 
+  ggplot() + 
+  geom_line(data = data.frame(x = 1:length(y), mu = underlying_mean), aes(x, mu), color = "darkblue", lwd = 1) + 
+  geom_vline(data = data.frame(x = true_changepts), aes(xintercept = x),  color = "grey", lwd = 0.5) + 
+  geom_point(aes(x, y), alpha = 0.5) +
+  ylab("") + 
+  xlab("") + 
+  ggtitle("a)") +
+  theme_bw() + 
+  theme(legend.position="none", 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+
+
+p <- d_vs_true %>% filter(window_size %in% c(50, NA)) %>% 
+  mutate(correct_detection = if_else(dist_nearest_est <= DETECTION_THRESHOLD, 1, 0), 
+         rejected = if_else(pvals < REJECTION_THRESHOLD, 1, 0)) %>% 
+  group_by(delta, window_size, type) %>% 
+  summarize(power = mean(correct_detection * rejected)) %>% 
+  filter(type %in% c("BS-fixed", "BS-adaptive-M-O-D", "BS-adaptive-M")) %>% 
+  mutate(type2 = factor(type, levels = c("BS-adaptive-M-O-D", "BS-adaptive-M", "BS-fixed"), labels = 
+                          c("Conditioning on the estimated changepoints, order, and signs with BS (Approach 1)", 
+                              "Conditioning on the estimated changepoints with BS (Approach 2)", 
+                              "Conditioning on the jth estimated changepoint with BS (Approach 3)"
+                                                                                         ))) %>% 
+  ggplot(aes(delta, power, color = type2)) + 
+  geom_line() +
+  geom_point() + 
+  xlab(TeX("$\\delta$")) + 
+  ylab("Power") + 
+  ggtitle("c)") +
+  theme_bw() + 
+  theme(legend.position="bottom", legend.title = element_text(size=0)) +
+  guides(color=guide_legend(nrow=2,byrow=TRUE))
+
+# pdf("../../paper/figures/Fig3.pdf", height = 8.5, width = 11)
+grid.arrange(q,p_error,  p)
+# dev.off()
+
+```
+
+### Figure 4
+
+```{r, warning=FALSE, cache=TRUE, echo = FALSE}
+p1 <- d_vs_true %>% 
+    filter(window_size %in% c(50, NA), delta > 0.1) %>% 
+    mutate(pvals = if_else(is.na(pvals), 1, pvals),
+           correct_detection = if_else(type %in% c("l0-sample-split", "bs-sample-split"), if_else(dist_nearest_est <= DETECTION_THRESHOLD_SAMPLE_SPLIT, 1, 0),
+                                       if_else(dist_nearest_est <= DETECTION_THRESHOLD, 1, 0)), 
+         rejected = if_else(pvals < REJECTION_THRESHOLD, 1, 0)) %>% 
+    group_by(delta, window_size, type) %>% 
+    summarize(power = mean(correct_detection * rejected), detection_prob = mean(correct_detection)) %>% 
+    filter(type %in% c("L0-fixed", "BS-fixed", "BS-adaptive-M-O-D", "BS-adaptive-M", "l0-sample-split", "bs-sample-split")) %>% 
+    mutate(type2 = factor(type, levels = c("BS-adaptive-M-O-D", "BS-adaptive-M", "BS-fixed", "L0-fixed", "bs-sample-split", "l0-sample-split"), 
+                        labels = c("Conditioning on the estimated changepoints, order, and signs with BS (Approach 1)", 
+                                   "Conditioning on the estimated changepoints with BS (Approach 2)", 
+                                   "Conditioning on the jth estimated changepoint with BS (Approach 3)", 
+                                   "Conditioning on the jth estimated changepoint with L0 segmentation (Approach 4)", 
+                                   "Sample splitting with binary segmentation (Approach 5)",
+                                   "Sample splitting with L0 segmentation (Approach 6)" 
+                                   ))) %>% 
+  ggplot(aes(delta, power, color = type2)) + 
+  geom_line() + 
+  xlab(TeX("$\\delta$")) + 
+  ylab("Power") + 
+  labs(color="") +  
+  theme_bw() +
+  ggtitle("a)") +
+  theme(legend.position="bottom", legend.title = element_text(size=0)) +
+  guides(color=guide_legend(nrow=6,byrow=TRUE))
+
+
+p2 <- d_vs_true %>% 
+  mutate(pvals = if_else(is.na(pvals), 1, pvals),
+         correct_detection = if_else(type %in% c("l0-sample-split", "bs-sample-split"), if_else(dist_nearest_est <= DETECTION_THRESHOLD_SAMPLE_SPLIT, 1, 0),
+         if_else(dist_nearest_est <= DETECTION_THRESHOLD, 1, 0)), 
+         rejected = if_else(pvals < REJECTION_THRESHOLD, 1, 0)) %>% 
+  filter(type %in% c("L0-fixed", "BS-fixed", "l0-sample-split", "bs-sample-split"), delta > 0.1) %>% 
+  group_by(delta, window_size, type) %>% 
+  summarize(detection_prob = mean(correct_detection)) %>% 
+  mutate(type2 = factor(type, levels = c("BS-fixed", "L0-fixed", "bs-sample-split", "l0-sample-split"), 
+                        labels = c("Binary segmentation (Approaches 1-3)", 
+                                   "L0 segmentation (Approach 4)", 
+                                   "Sample splitting with binary segmentation (Approach 5)",
+                                   "Sample splitting with L0 segmentation (Approach 6)"
+                                   ))) %>% 
+  ggplot(aes(delta, detection_prob, linetype = type2)) + 
+  geom_line() + 
+  xlab(TeX("$\\delta$")) + 
+  ylab("Detection probability") + 
+  labs(color="") +  
+  theme_bw() +
+  ggtitle("b)") +
+  theme(legend.position="bottom", legend.title = element_text(size=0)) +
+  guides(linetype=guide_legend(nrow=4,byrow=TRUE))
+
+
+p <- d_vs_true %>% 
+  mutate(pvals = if_else(is.na(pvals), 1, pvals),
+         correct_detection = if_else(type %in% c("l0-sample-split", "bs-sample-split"), if_else(dist_nearest_est <= DETECTION_THRESHOLD_SAMPLE_SPLIT, 1, 0),
+                                     if_else(dist_nearest_est <= DETECTION_THRESHOLD, 1, 0)), 
+         rejected = if_else(pvals < REJECTION_THRESHOLD, 1, 0)) %>%
+  filter(window_size %in% c(1, 30, 50)) %>% 
+  group_by(delta, window_size, type) %>% 
+  summarize(power = mean(correct_detection * rejected)) %>% 
+  ungroup() %>% 
+  filter(type %in% c("L0-fixed", "BS-fixed")) %>% 
+  mutate(type2 = factor(type, levels = c("BS-fixed", "L0-fixed"), 
+                        labels = c("Conditioning on the jth estimated changepoint with BS (Approach 3)", 
+                                   "Conditioning on the jth estimated changepoint with L0 segmentation (Approach 4)")), 
+         window_size = factor(window_size, levels = c(1, 30, 50), labels =  c("Window size: 1", "Window size: 30", "Window size: 50"))) %>% 
+  ggplot(aes(delta, power, color = type2)) + 
+  geom_line() + 
+  xlab(TeX("$\\delta$")) + 
+  ylab("Power") + 
+  labs(color="") +  
+  theme_bw() +
+  facet_wrap(~window_size) +
+  ggtitle("c)") +
+  theme(legend.position="bottom", legend.title = element_text(size=0)) +
+  guides(color=guide_legend(nrow=1,byrow=TRUE))
+
+lay <- rbind(c(1, 2), c(4, 4))
+grid.arrange(p1, p2, p, layout_matrix = lay)
+```
+
+### Figure 5 
+
+```{r, warning=FALSE, cache=TRUE, echo = FALSE}
+library(ChangepointInference)
+library(changepoint) ## for dataset 
+library(tidyverse)
+library(gridExtra)
+data(HC1, package = "changepoint")
+
+n <- 2000
+y <- HC1[1:n] / sd(HC1[1:n])
+
+## L0 inference 
+fit <- changepoint_inference(y, "L0-fixed", log(length(y)), window_size = 50)
+
+
+REJECTION_THRESHOLD <- 0.05
+
+K <- length(fit$change_pts)
+
+fit_bs_thj <- changepoint_inference(y, "BS-fixed", K, window_size = 50)
+fit_bs_order_signs <- changepoint_inference(y, "BS-adaptive-M-O-D", K)
+fit_bs_cps <- changepoint_inference(y, "BS-adaptive-M", K)
+
+d1 <- data.frame(cps = fit_bs_thj$change_pts, pvals = fit_bs_thj$pvals, type = "bs_thj")
+d2 <- data.frame(cps = fit_bs_order_signs$change_pts, pvals = fit_bs_order_signs$pvals, type = "bs_order_signs")
+d3 <- data.frame(cps = fit_bs_cps$change_pts, pvals = fit_bs_cps$pvals, type = "bs_cps")
+d4 <- data.frame(cps = fit$change_pts, pvals = fit$pvals, type = "l0_thj")
+
+dd <- rbind(d1, d2, d3, d4)
+
+dres <- dd %>% mutate(rejected = as.factor(if_else(pvals < REJECTION_THRESHOLD , 1, 0)), 
+                      type = factor(type, levels = c("bs_order_signs", "bs_cps", "bs_thj", "l0_thj"), 
+                                    labels = c("Conditioning on the estimated changepoints, order, and signs with BS (Approach 1)", 
+                                               "Conditioning on the estimated changepoints with BS (Approach 2)", 
+                                               "Conditioning on the jth estimated changepoint with BS (Approach 3)", 
+                                               "Conditioning on the jth estimated changepoint with L0 segmentation (Approach 4)"
+                                    )))
+
+dat <- data.frame(position = 1:length(y), y = y)
+
+p <- dat %>% ggplot(aes(x = position, y = y)) + 
+  geom_point(size = 0.1, alpha = 0.8) +
+  xlab("Position") + 
+  ylab("G-C content") + 
+  geom_vline(data = dres, aes(xintercept = cps, color = rejected)) + 
+  facet_wrap(~type) + 
+  labs(color="") +  
+  theme_bw() +
+  theme(legend.position="none", 
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+grid.arrange(p)
+
+knitr::kable(dres %>% group_by(type) %>% summarize(n_discoveries = sum(rejected == 1)))
+
+
+```
+
+
+Data and code
+----
+
+Data and code are available at this [Github repository](https://github.com/jewellsean/ChangepointInference-reproduce).
+
+References
+----
+
+{% bibliography --cited %}

@@ -1,0 +1,16 @@
+name: Testing for a Change in Mean After Changepoint Detection
+title: Testing for a Change in Mean After Changepoint Detection
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  hard_wrap: false
+url:
+baseurl: /
+plugins: ['jekyll/scholar']
+scholar:
+  replace_strings: true
+  query: "@*"
+  bibliography_template: bibtemplate
+  bibliography: references.bib
+
